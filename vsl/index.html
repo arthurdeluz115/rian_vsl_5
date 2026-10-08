@@ -37,6 +37,7 @@ src="https://www.facebook.com/tr?id=912832049984658&ev=PageView&noscript=1"
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://scripts.converteai.net/5c44636d-2807-4c36-8d21-6fb4390eaef0/ab-test/6ac6cddf70a7736cd8a157ca/player.js" as="script">
 <link rel="preload" href="https://scripts.converteai.net/lib/js/smartplayer-wc/v4/smartplayer.js" as="script">
 <link rel="dns-prefetch" href="https://cdn.converteai.net">
 <link rel="dns-prefetch" href="https://scripts.converteai.net">
@@ -111,6 +112,11 @@ body{
 }
 .vsl-player vturb-smartplayer{ display:block; width:100%; }
 
+/* ---------- Gatilhos do vturb ("Mostrar conteúdo oculto") ----------
+   Elementos vazios: o vturb troca o display:none deles no tempo configurado
+   em cada vídeo, e o código percebe. Não aparecem para a pessoa. */
+.gatilho-vturb{ height:0; margin:0; padding:0; overflow:hidden; }
+
 /* ---------- Pessoas assistindo ao vivo ---------- */
 .ao-vivo{
   position:absolute;
@@ -147,7 +153,13 @@ body{
   50%{ opacity:.35; transform:scale(.8); }
 }
 
-/* ---------- Vagas restantes (cartão grande sobre o vídeo) ---------- */
+@keyframes bump{
+  0%{ transform:scale(1); }
+  40%{ transform:scale(1.12); }
+  100%{ transform:scale(1); }
+}
+
+/* ---------- Vagas: cartão grande sobre o vídeo (gatilho mostrar-vagas) ---------- */
 .vg{
   position:absolute;
   left:50%;
@@ -210,11 +222,6 @@ body{
   text-shadow:0 0 24px rgba(239,68,68,.55);
 }
 .vg-numero.bump{ animation:bump .4s ease; }
-@keyframes bump{
-  0%{ transform:scale(1); }
-  40%{ transform:scale(1.12); }
-  100%{ transform:scale(1); }
-}
 
 .vg-sub{
   font-size:14px;
@@ -242,6 +249,69 @@ body{
   font-size:13px;
   line-height:1.35;
   color:rgba(255,255,255,.82);
+}
+
+/* ---------- Vagas: caixinha embaixo do vídeo (gatilho mostrar-vagas-baixo) ---------- */
+.vb{
+  margin-top:14px;
+  padding:14px 16px;
+  border:1px solid #FECACA;
+  background:#FEF2F2;
+  border-radius:var(--raio);
+  opacity:0;
+  transform:translateY(6px);
+  transition:opacity .5s ease, transform .5s ease;
+}
+.vb[hidden]{ display:none; }
+.vb.visivel{ opacity:1; transform:none; }
+
+.vb-topo{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-size:20px;
+  font-weight:700;
+  color:#7F1D1D;
+}
+.vb-rotulo{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+}
+.vb-ponto{
+  flex:0 0 auto;
+  width:9px; height:9px;
+  border-radius:50%;
+  background:#EF4444;
+  box-shadow:0 0 0 0 rgba(239,68,68,.6);
+  animation:vg-pulsa 1.6s ease-out infinite;
+}
+.vb-numero{
+  font-size:36px;
+  font-weight:800;
+  line-height:1;
+  color:#DC2626;
+  font-variant-numeric:tabular-nums;
+  transition:color .3s ease;
+}
+.vb-numero.baixo{ color:#B91C1C; }
+.vb-numero.bump{ animation:bump .35s ease; }
+
+.vb-barra{
+  margin-top:10px;
+  height:6px;
+  border-radius:999px;
+  background:#FECACA;
+  overflow:hidden;
+}
+.vb-barra i{
+  display:block;
+  height:100%;
+  width:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#EF4444,#DC2626);
+  transition:width .6s ease;
 }
 
 /* ---------- Notificação de compra (topo do player) ---------- */
@@ -301,8 +371,11 @@ body{
   .ao-vivo-ponto,
   .aviso-hoje-ponto,
   .vg-ponto,
-  .vg-numero.bump{ animation:none; }
+  .vb-ponto,
+  .vg-numero.bump,
+  .vb-numero.bump{ animation:none; }
   .vg{ transition:opacity .2s ease; transform:translateX(-50%); }
+  .vb{ transition:opacity .2s ease; transform:none; }
   .notificacao{ transition:opacity .2s ease; transform:none; }
 }
 </style>
@@ -317,7 +390,7 @@ body{
   </div>
 
   <div class="vsl-player">
-    <vturb-smartplayer id="vid-6ac1bcd0965fbdd354920fdc" style="display: block; margin: 0 auto; width: 100%; max-width: 400px;"><div class="vturb-player-placeholder" style="position: relative; width: 100%; padding: 177.77777777777777% 0 0; z-index: 0; background-color: black;"></div></vturb-smartplayer>
+    <vturb-smartplayer id="ab-6ac6cddf70a7736cd8a157ca" style="display: block; margin: 0 auto; width: 100%; "></vturb-smartplayer>
 
     <div class="ao-vivo" aria-live="off">
       <span class="ao-vivo-ponto" aria-hidden="true"></span>
@@ -343,18 +416,37 @@ body{
     </div>
   </div>
 
+  <div class="vb" id="vb" hidden aria-live="off">
+    <div class="vb-topo">
+      <span class="vb-rotulo"><span class="vb-ponto" aria-hidden="true"></span><span id="vbRotulo">Vagas restantes</span></span>
+      <span class="vb-numero" id="vbNumero">49</span>
+    </div>
+    <div class="vb-barra"><i id="vbBarra"></i></div>
+  </div>
+
+  <!-- Gatilhos do vturb: NÃO remova o style="display:none" (o vturb exige) -->
+  <div class="mostrar-conteudo gatilho-vturb" style="display:none" aria-hidden="true"></div>
+  <div class="mostrar-vagas gatilho-vturb" style="display:none" aria-hidden="true"></div>
+  <div class="mostrar-vagas-baixo gatilho-vturb" style="display:none" aria-hidden="true"></div>
+
 </main>
 
 <script>
 
-// O id do player é lido do elemento <vturb-smartplayer> da página:
-// para trocar o vídeo, basta substituir esse elemento pelo novo embed do vturb.
-const PLAYER_EL = document.querySelector('vturb-smartplayer');
-const PLAYER_ID = PLAYER_EL ? PLAYER_EL.id.replace('vid-', '') : '';
+// O script do player é montado a partir do id do <vturb-smartplayer>:
+// "ab-..." = teste A/B, "vid-..." = vídeo único. Para trocar, basta colar o novo embed.
+const CONTA_VTURB = '5c44636d-2807-4c36-8d21-6fb4390eaef0';
+const PLAYER_EL = document.querySelector('.vsl-player > vturb-smartplayer');
+const PLAYER_ID = PLAYER_EL ? PLAYER_EL.id : '';
+
+function urlDoPlayer(id){
+  if (id.indexOf('ab-') === 0) return 'https://scripts.converteai.net/' + CONTA_VTURB + '/ab-test/' + id.slice(3) + '/player.js';
+  return 'https://scripts.converteai.net/' + CONTA_VTURB + '/players/' + id.replace('vid-', '') + '/v4/player.js';
+}
 
 const CONFIG = {
   checkoutUrl: 'https://app.ephra.io/checkout/5do1xf2',
-  vslPlayerUrl: 'https://scripts.converteai.net/5c44636d-2807-4c36-8d21-6fb4390eaef0/players/' + PLAYER_ID + '/v4/player.js'
+  vslPlayerUrl: urlDoPlayer(PLAYER_ID)
 };
 
 // Data de hoje no label acima do vídeo (ex.: " (07/10)")
@@ -397,32 +489,40 @@ window.irParaCheckout = irParaCheckout;
 
 <script>
 /* ============================================================
- * Contadores sincronizados com o vídeo (vturb)
+ * Contadores sincronizados com o vídeo (vturb) — TESTE A/B
  *
- * AJUSTE ESTES VALORES (em segundos):
- *   duracaoVideo  -> duração total do vídeo
- *   pitchInicio   -> segundo em que o pitch começa (notificações)
- *   vagasAparece  -> segundo em que o cartão de vagas aparece sobre o vídeo
- *   vagasTermina  -> segundo em que as vagas devem chegar a 04
- *                    (use null para ir até o fim do vídeo)
+ * Os tempos NÃO ficam aqui: cada vídeo dispara os elementos pelo
+ * botão "Mostrar conteúdo oculto" configurado no painel do vturb.
+ *
+ *   mostrar-conteudo     -> pitch: começam as notificações e o
+ *                           "ao vivo" sobe acima do botão
+ *   mostrar-vagas        -> cartão grande de vagas dentro do player
+ *                           (também conta como pitch)
+ *   mostrar-vagas-baixo  -> caixinha de vagas embaixo do vídeo
+ *                           (também conta como pitch)
+ *
+ * As vagas sempre caem até 04 no fim do vídeo que estiver tocando
+ * (a duração é lida do próprio vídeo).
+ *
+ * Para testar sem esperar o vídeo, no console do navegador:
+ *   document.querySelector('.mostrar-vagas').style.display = 'block'
  * ============================================================ */
 const CONTADORES = {
   debug: false,                 // true = mostra logs no console para testar
-  duracaoVideo: 1015,           // duração do vídeo: 16:55 (16*60 + 55)
-  pitchInicio: 864,             // pitch começa em 14:24 (14*60 + 24)
 
-  // Cartão de vagas sobre o vídeo
-  vagasAparece: 950,            // aparece em 15:50 (15*60 + 50)
-  vagasTermina: null,           // null = chega a 04 no fim do vídeo (16:55)
+  gatilhos: {
+    pitch:       'mostrar-conteudo',
+    vagasGrande: 'mostrar-vagas',
+    vagasBaixo:  'mostrar-vagas-baixo'
+  },
+
+  duracaoReserva: 1015,         // só usada se não der para ler a duração do vídeo (curva do "ao vivo")
+  janelaReserva: 65,            // só usada se não der para ler a duração: vagas caem em 65s
 
   proporcaoVideo: 16 / 9,       // altura / largura do vídeo (9:16 vertical = 16/9)
   topoVideoManual: 0,           // plano B: altura (px) do título acima do vídeo, só usada se o código não achar o <video>
 
-  // Quando o botão do vturb aparece (14:24), o contador "ao vivo" sobe para não ficar em cima dele
-  aoVivoSobe: {
-    em: 864,                    // segundo em que o botão aparece (14:24)
-    px: 100                     // quantos pixels o contador sobe (aumente se ainda tocar no botão)
-  },
+  aoVivoSobePx: 100,            // quantos pixels o "ao vivo" sobe no pitch (aumente se ainda tocar no botão)
 
   aoVivoInicio: 112,
   aoVivoFim: 94,
@@ -434,7 +534,6 @@ const CONTADORES = {
     nomes: ['Rafaela', 'Juliana', 'Camila', 'Fernanda', 'Mariana', 'Patrícia', 'Bruna', 'Aline',
             'Larissa', 'Bianca', 'Vanessa', 'Carla', 'Gabriel', 'Lucas', 'Rodrigo', 'Thiago',
             'Marcos', 'Felipe', 'Pedro', 'Diego'],
-    inicio: 864,            // segundo do vídeo em que começam (14:24, junto com o pitch)
     duracao: 4500,          // tempo que cada notificação fica na tela (ms)
     intervaloMin: 13000,    // intervalo mínimo entre notificações (ms)
     intervaloMax: 23000     // intervalo máximo entre notificações (ms)
@@ -442,7 +541,7 @@ const CONTADORES = {
 
   backredirect: {
     ativo: true,
-    inicio: 0,              // segundo do vídeo a partir do qual vale (0 = desde o início do vídeo; null = só a partir do pitch)
+    inicio: 0,              // segundo do vídeo a partir do qual vale (0 = desde o início; null = só a partir do pitch)
     destino: '/back/'       // página para onde o botão "voltar" manda a pessoa
   }
 };
@@ -451,16 +550,30 @@ const CONTADORES = {
   const C = CONTADORES;
   const log = (...a) => { if (C.debug) console.log('[contadores]', ...a); };
 
-  const elPlayer   = document.querySelector('vturb-smartplayer');
-  const elAoVivo   = document.getElementById('aoVivoNumero');
+  const elPlayer     = PLAYER_EL;
+  const elWrapPlayer = document.querySelector('.vsl-player');
+  const elAoVivo     = document.getElementById('aoVivoNumero');
+  const elAoVivoBox  = document.querySelector('.ao-vivo');
+
   const elVg        = document.getElementById('vg');
   const elVgNumero  = document.getElementById('vgNumero');
   const elVgBarra   = document.getElementById('vgBarra');
   const elVgRotulo  = document.getElementById('vgRotulo');
   const elVgRodape  = document.getElementById('vgRodape');
 
+  const elVb        = document.getElementById('vb');
+  const elVbNumero  = document.getElementById('vbNumero');
+  const elVbBarra   = document.getElementById('vbBarra');
+  const elVbRotulo  = document.getElementById('vbRotulo');
+
+  const gPitch  = document.querySelector('.' + C.gatilhos.pitch);
+  const gGrande = document.querySelector('.' + C.gatilhos.vagasGrande);
+  const gBaixo  = document.querySelector('.' + C.gatilhos.vagasBaixo);
+
   const rand = (min, max) => min + Math.random() * (max - min);
   const pad2 = n => String(n).padStart(2, '0');
+
+  let videoEl = null;   // <video> real dentro do player (achado mais abaixo)
 
   /* ---------- tempo do vídeo ---------- */
   let tempo = 0;
@@ -485,27 +598,39 @@ const CONTADORES = {
     if (t !== tempo) tocando = true;   // o tempo avançou = o vídeo está tocando
     tempo = t;
     ultimoUpdate = Date.now();
+    verificarGatilhos();
     renderVagas();
-    verificarNotificacoes();
   }
 
-  // Plano B: se o player não emitir timeupdate, conta o tempo com play/pause
+  // Plano B: se o player não emitir timeupdate, lê o tempo do <video> ou conta com play/pause
   setInterval(() => {
     if (recebeuTimeupdate && tocando && Date.now() - ultimoUpdate > 2000){
       tocando = false;                 // tempo parou de avançar = pausado
     }
-    if (tocando && !recebeuTimeupdate){
-      tempo += 1;
-      renderVagas();
-      verificarNotificacoes();
+    if (!recebeuTimeupdate){
+      if (videoEl && videoEl.currentTime > 0){
+        tempo = videoEl.currentTime;
+        tocando = !videoEl.paused;
+      } else if (tocando){
+        tempo += 1;
+      }
     }
+    renderVagas();
+    armarBackredirect();
   }, 1000);
+
+  // Duração real do vídeo que caiu no teste A/B (null se ainda não deu para ler)
+  function duracaoVideo(){
+    if (videoEl && isFinite(videoEl.duration) && videoEl.duration > 60) return videoEl.duration;
+    return null;
+  }
 
   /* ---------- pessoas assistindo ao vivo (112 -> 94) ---------- */
   let aoVivo = C.aoVivoInicio;
 
   function alvoAoVivo(){
-    const p = Math.min(1, Math.max(0, tempo / C.duracaoVideo));
+    const dur = duracaoVideo() || C.duracaoReserva;
+    const p = Math.min(1, Math.max(0, tempo / dur));
     return C.aoVivoInicio - (C.aoVivoInicio - C.aoVivoFim) * p;
   }
 
@@ -569,11 +694,37 @@ const CONTADORES = {
     agendarNotificacao(true);
   }
 
-  function verificarNotificacoes(){
-    if (tempo >= C.notificacoes.inicio) iniciarNotificacoes();
-    armarBackredirect();   // aproveita o mesmo gatilho de tempo para armar o backredirect
-    ajustarAoVivo();       // sobe o contador "ao vivo" quando o botão aparece
+  /* ---------- gatilhos do vturb ---------- */
+  let pitchAtivo = false;
+  let vagasModo = null;   // null | 'grande' | 'baixo'
+
+  function revelado(el){
+    return !!el && window.getComputedStyle(el).display !== 'none';
   }
+
+  function ativarPitch(){
+    if (pitchAtivo) return;
+    pitchAtivo = true;
+    log('gatilho do pitch disparou em', Math.round(tempo) + 's');
+    iniciarNotificacoes();
+    ajustarAoVivo();
+    posicionarVagasGrande();
+    armarBackredirect();
+  }
+
+  function verificarGatilhos(){
+    const grande = revelado(gGrande);
+    const baixo  = revelado(gBaixo);
+
+    if (!pitchAtivo && (revelado(gPitch) || grande || baixo)) ativarPitch();
+
+    if (!vagasModo){
+      if (grande) ativarVagas('grande');
+      else if (baixo) ativarVagas('baixo');
+    }
+  }
+
+  setInterval(verificarGatilhos, 300);
 
   /* ---------- vagas (49 -> 04, de 2 em 2 e 3 em 3) ---------- */
   // Sorteia uma sequência de passos 2 e 3 que soma exatamente 49 - 4 = 45
@@ -591,84 +742,92 @@ const CONTADORES = {
   }
 
   const passos = sortearPassos(C.vagasInicio - C.vagasFim);
-
-  // Distribui as quedas entre o momento em que o cartão aparece e o fim da janela, com tempos irregulares
-  const vagasFimJanela = C.vagasTermina || C.duracaoVideo;
-  const janela = (vagasFimJanela - C.vagasAparece) * 0.96;
-  const momentos = passos
-    .map((_, i) => C.vagasAparece + ((i + 0.5 + rand(-0.35, 0.35)) / passos.length) * janela)
-    .sort((a, b) => a - b);
-
-  let cartaoMostrando = false;
+  let momentos = [];
   let vagasAtual = null;
 
-  function renderVagas(){
-    if (tempo < C.vagasAparece) return;
+  function ativarVagas(modo){
+    vagasModo = modo;
 
-    if (!cartaoMostrando){
-      cartaoMostrando = true;
-      elVg.hidden = false;
-      posicionarVagasGrande();
-      requestAnimationFrame(() => requestAnimationFrame(() => elVg.classList.add('visivel')));
-      log('mostrando o cartão de vagas');
-    }
+    // Distribui as quedas entre agora e o fim do vídeo, com tempos irregulares
+    const inicio = tempo;
+    const dur = duracaoVideo();
+    const fim = (dur && dur - inicio > 10) ? dur : inicio + C.janelaReserva;
+    const janela = (fim - inicio) * 0.96;
+    momentos = passos
+      .map((_, i) => inicio + ((i + 0.5 + rand(-0.35, 0.35)) / passos.length) * janela)
+      .sort((a, b) => a - b);
+
+    log('vagas (' + modo + ') a partir de', Math.round(inicio) + 's até', Math.round(fim) + 's');
+
+    const el = modo === 'grande' ? elVg : elVb;
+    el.hidden = false;
+    if (modo === 'grande') posicionarVagasGrande();
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visivel')));
+
+    renderVagas();
+  }
+
+  function renderVagas(){
+    if (!vagasModo) return;
 
     let vagas = C.vagasInicio;
     for (let i = 0; i < momentos.length; i++){
       if (tempo >= momentos[i]) vagas -= passos[i];
     }
     vagas = Math.max(C.vagasFim, vagas);
+    if (vagas === vagasAtual) return;
 
-    if (vagas !== vagasAtual){
-      const primeira = vagasAtual === null;
-      vagasAtual = vagas;
-      const baixo = vagas <= 10;
+    const primeira = vagasAtual === null;
+    vagasAtual = vagas;
+    const baixo = vagas <= 10;
+    const largura = Math.max(4, (vagas / C.vagasInicio) * 100) + '%';
+    let elNumero;
 
-      elVgNumero.textContent = pad2(vagas);
-      elVgNumero.classList.toggle('baixo', baixo);
-      elVgBarra.style.width = Math.max(4, (vagas / C.vagasInicio) * 100) + '%';
+    if (vagasModo === 'grande'){
+      elNumero = elVgNumero;
+      elVgBarra.style.width = largura;
       elVgRotulo.textContent = baixo ? 'Últimas vagas' : 'Vagas restantes';
       elVgRodape.textContent = baixo ? 'Está acabando! Garanta a sua antes que feche' : 'As vagas estão sendo preenchidas agora';
+    } else {
+      elNumero = elVbNumero;
+      elVbBarra.style.width = largura;
+      elVbRotulo.textContent = baixo ? 'Últimas vagas' : 'Vagas restantes';
+    }
 
-      if (!primeira){
-        elVgNumero.classList.remove('bump');
-        void elVgNumero.offsetWidth;
-        elVgNumero.classList.add('bump');
-      }
+    elNumero.textContent = pad2(vagas);
+    elNumero.classList.toggle('baixo', baixo);
+
+    if (!primeira){
+      elNumero.classList.remove('bump');
+      void elNumero.offsetWidth;
+      elNumero.classList.add('bump');
     }
   }
 
-  // Centraliza o cartão no VÍDEO. Como o botão do vturb aparece embaixo do vídeo
-  // (a partir de aoVivoSobe.em) e faz o player crescer, a posição é medida a partir
-  // do fundo do player somando essa área extra.
+  /* ---------- posição dos elementos sobre o VÍDEO ---------- */
+  const elNotifBox    = document.getElementById('notificacao');
+  const BASE_AO_VIVO  = 28;   // distância do contador até o fundo do player, antes do botão aparecer
+  const MARGEM_TOPO   = 20;   // distância da notificação até o topo do vídeo
+  let avisouPlanoB = false;
+
+  // Sobe o contador quando o botão do vturb aparece (pitch), para ele não ficar em cima
+  function ajustarAoVivo(){
+    const sobe = pitchAtivo ? C.aoVivoSobePx : 0;
+    elAoVivoBox.style.bottom = (BASE_AO_VIVO + sobe) + 'px';
+  }
+
+  // Centraliza o cartão grande no VÍDEO. Depois do pitch o botão do vturb aparece
+  // embaixo do vídeo e faz o player crescer, então essa área é descontada.
   function posicionarVagasGrande(){
     if (elVg.hidden) return;
-    const larguraVideo = elPlayer.getBoundingClientRect().width;
+    const larguraVideo = elWrapPlayer.getBoundingClientRect().width;
     if (!larguraVideo) return;
-    const alturaVideo   = larguraVideo * C.proporcaoVideo;
-    const areaDoBotao   = tempo >= C.aoVivoSobe.em ? C.aoVivoSobe.px : 0;
-    const alturaCard    = elVg.offsetHeight;
+    const alturaVideo = larguraVideo * C.proporcaoVideo;
+    const areaDoBotao = pitchAtivo ? C.aoVivoSobePx : 0;
+    const alturaCard  = elVg.offsetHeight;
     const bottom = areaDoBotao + (alturaVideo - alturaCard) / 2;
     elVg.style.bottom = Math.max(areaDoBotao + 48, bottom) + 'px';
   }
-
-  /* ---------- posição dos elementos sobre o VÍDEO ---------- */
-  // O player do vturb tem título, subtítulo e botão além do vídeo, então a altura
-  // do container não serve de referência. Aqui o código procura o <video> de verdade
-  // (inclusive dentro de shadow DOM) e posiciona o contador e a notificação nele.
-  const elAoVivoBox   = document.querySelector('.ao-vivo');
-  const elNotifBox    = document.getElementById('notificacao');
-  const elWrapPlayer  = document.querySelector('.vsl-player');
-  const BASE_AO_VIVO  = 28;   // distância do contador até o fundo do player, antes do botão aparecer
-
-  // Sobe o contador quando o botão do vturb aparece, para ele não ficar em cima
-  function ajustarAoVivo(){
-    const sobe = tempo >= C.aoVivoSobe.em ? C.aoVivoSobe.px : 0;
-    elAoVivoBox.style.bottom = (BASE_AO_VIVO + sobe) + 'px';
-  }
-  const MARGEM_TOPO   = 20;   // distância da notificação até o topo do vídeo
-  let videoEl = null;
-  let avisouPlanoB = false;
 
   function acharVideo(no){
     if (!no || !no.querySelector) return null;
@@ -689,27 +848,23 @@ const CONTADORES = {
     if (!base.width) return;
 
     if (!videoEl || !videoEl.isConnected){
-      videoEl = acharVideo(elPlayer.shadowRoot) || acharVideo(elPlayer);
+      videoEl = acharVideo(elPlayer.shadowRoot) || acharVideo(elPlayer) || acharVideo(elWrapPlayer);
       if (videoEl) log('vídeo encontrado dentro do player');
     }
 
-    let topoVideo, fundoVideo;
+    let topoVideo;
     if (videoEl){
       const r = videoEl.getBoundingClientRect();
-      if (r.height > 50){
-        topoVideo  = r.top    - base.top;
-        fundoVideo = r.bottom - base.top;
-      }
+      if (r.height > 50) topoVideo = r.top - base.top;
     }
 
     if (topoVideo === undefined){
-      // Plano B: não achou o <video>; usa a proporção e o deslocamento manual
+      // Plano B: não achou o <video>; usa o deslocamento manual
       if (!avisouPlanoB){ avisouPlanoB = true; log('vídeo NÃO encontrado, usando plano B (topoVideoManual)'); }
-      topoVideo  = C.topoVideoManual || 0;
-      fundoVideo = topoVideo + base.width * C.proporcaoVideo;
+      topoVideo = C.topoVideoManual || 0;
     }
 
-    elNotifBox.style.top  = Math.max(0, topoVideo + MARGEM_TOPO) + 'px';
+    elNotifBox.style.top = Math.max(0, topoVideo + MARGEM_TOPO) + 'px';
     posicionarVagasGrande();
   }
 
@@ -723,7 +878,7 @@ const CONTADORES = {
   let brArmado = false;
   let interagiu = false;
 
-  function brInicio(){ return BR.inicio === null ? C.pitchInicio : BR.inicio; }
+  function brLiberado(){ return BR.inicio === null ? pitchAtivo : tempo >= BR.inicio; }
 
   // Leva a query string inteira (utm_*, fbclid, gclid, sck, vk_*...) para a /back/ repassar ao checkout
   function urlBack(){ return BR.destino + window.location.search; }
@@ -731,7 +886,7 @@ const CONTADORES = {
   // O Chrome ignora entradas de histórico criadas sem interação do usuário,
   // então só "armamos" depois de um toque/clique/tecla na página.
   function armarBackredirect(){
-    if (!BR.ativo || brArmado || !interagiu || tempo < brInicio()) return;
+    if (!BR.ativo || brArmado || !interagiu || !brLiberado()) return;
     brArmado = true;
     try { history.pushState({ backredirect: true }, '', location.href); } catch(e){}
     log('backredirect armado');
@@ -750,19 +905,29 @@ const CONTADORES = {
   });
 
   /* ---------- conexão com o player do vturb ---------- */
+  // No teste A/B o vturb cria um player interno com o id do vídeo sorteado,
+  // então além do elemento principal também procuramos qualquer
+  // <vturb-smartplayer> dentro do container e as instâncias globais.
   let conectado = false;
+
+  function acharInstancia(){
+    if (elPlayer && typeof elPlayer.on === 'function') return elPlayer;
+    const internos = elWrapPlayer.querySelectorAll('vturb-smartplayer');
+    for (let i = 0; i < internos.length; i++){
+      if (typeof internos[i].on === 'function') return internos[i];
+    }
+    if (window.smartplayer && window.smartplayer.instances && window.smartplayer.instances[0]) return window.smartplayer.instances[0];
+    return null;
+  }
 
   function conectar(){
     if (conectado) return true;
 
-    let inst = null;
-    if (elPlayer && typeof elPlayer.on === 'function') inst = elPlayer;
-    else if (window.smartplayer && window.smartplayer.instances && window.smartplayer.instances[0]) inst = window.smartplayer.instances[0];
-
+    const inst = acharInstancia();
     if (!inst || typeof inst.on !== 'function') return false;
 
     inst.on('timeupdate', aoTimeupdate);
-    inst.on('play',  () => { tocando = true;  log('play'); verificarNotificacoes(); });
+    inst.on('play',  () => { tocando = true;  log('play'); });
     inst.on('pause', () => { tocando = false; log('pause'); });
     inst.on('ended', () => { tocando = false; log('ended'); });
 
@@ -771,9 +936,10 @@ const CONTADORES = {
     return true;
   }
 
-  elPlayer.addEventListener('player:ready', conectar);
+  if (elPlayer) elPlayer.addEventListener('player:ready', conectar);
+  document.addEventListener('player:ready', conectar);
 
-  renderVagas();   // se vagasAparece for 0, o elemento já aparece ao carregar a página
+  verificarGatilhos();
 
   let tentativas = 0;
   const poll = setInterval(() => {
